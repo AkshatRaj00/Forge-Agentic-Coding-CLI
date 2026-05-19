@@ -14,18 +14,21 @@ import {
   recordDecision,
   dequeue,
 } from '../src/core/plan-approval';
-import type { Plan } from '../src/types';
+import type { Plan } from '../src/types/index';
 
 const makePlan = (id = 'task-1'): Plan => ({
   id,
   goal: 'test goal',
   steps: [
-    { id: 'step-1', type: 'write_file', description: 'Create index.ts' },
+    { id: 'step-1', type: 'create_file', description: 'Create index.ts' },
     { id: 'step-2', type: 'run_tests', description: 'Run test suite' },
   ],
+  createdAt: new Date().toISOString(),
+  mode: 'balanced',
+  version: '1',
 });
 
-// Reset queue state between tests by dequeuing known ids
+// Reset queue state between tests by dequeuing known ids.
 beforeEach(() => {
   dequeue('task-1');
   dequeue('task-2');
@@ -109,8 +112,8 @@ describe('applyPlanEdit', () => {
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.entry.updatedAt).toBeUndefined(); // no mutation happened
-      expect(result.entry).toBe(before); // same object reference
+      expect(result.entry.updatedAt).toBeUndefined();
+      expect(result.entry).toBe(before);
     }
   });
 });
@@ -152,7 +155,7 @@ describe('recordDecision', () => {
     if (!result.ok) expect(result.reason).toBe('not_found');
   });
 
-  it('prevents overwriting terminal state (approved → approve again)', () => {
+  it('prevents overwriting terminal state (approved -> approve again)', () => {
     enqueue('task-1', makePlan());
     recordDecision('task-1', { action: 'approve' });
     const result = recordDecision('task-1', { action: 'approve' });
@@ -160,7 +163,7 @@ describe('recordDecision', () => {
     if (!result.ok) expect(result.reason).toBe('terminal_state');
   });
 
-  it('prevents overwriting terminal state (rejected → request_revision)', () => {
+  it('prevents overwriting terminal state (rejected -> request_revision)', () => {
     enqueue('task-1', makePlan());
     recordDecision('task-1', { action: 'reject' });
     const result = recordDecision('task-1', { action: 'request_revision' });
@@ -168,7 +171,7 @@ describe('recordDecision', () => {
     if (!result.ok) expect(result.reason).toBe('terminal_state');
   });
 
-  it('allows revision_requested → approve', () => {
+  it('allows revision_requested -> approve', () => {
     enqueue('task-1', makePlan());
     recordDecision('task-1', { action: 'request_revision' });
     const result = recordDecision('task-1', { action: 'approve' });

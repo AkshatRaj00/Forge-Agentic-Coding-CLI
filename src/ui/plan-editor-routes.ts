@@ -14,9 +14,9 @@
  *
  * Endpoints
  * ---------
- *   GET    /api/approval-queue            — list all pending plan entries
- *   GET    /api/approval-queue/:id        — get a single entry
- *   PATCH  /api/approval-queue/:id        — apply a sparse plan step edit
+ *   GET    /api/approval-queue              — list all pending plan entries
+ *   GET    /api/approval-queue/:id          — get a single entry
+ *   PATCH  /api/approval-queue/:id          — apply a sparse plan step edit
  *   POST   /api/approval-queue/:id/decision — approve / reject / request revision
  *
  * All responses follow { ok: boolean, data?: unknown, error?: string }.

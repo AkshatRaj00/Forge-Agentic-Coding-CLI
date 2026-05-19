@@ -14,7 +14,7 @@
  * @author Akshat Raj <AkshatRaj00>
  */
 
-import { Plan } from '../types';
+import { Plan } from '../types/index';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,7 +33,7 @@ export interface ApprovalQueueEntry {
   enqueuedAt: string;
   /** ISO timestamp of the last status update, if any */
   updatedAt?: string;
-  /** Optional free-text feedback from the reviewer (used for revision_requested / rejected) */
+  /** Optional free-text feedback from the reviewer */
   reviewerFeedback?: string;
 }
 
@@ -99,28 +99,19 @@ export const enqueue = (id: string, plan: Plan): ApprovalQueueEntry => {
   return entry;
 };
 
-/**
- * Return a snapshot of all entries currently in the queue.
- */
-export const listQueue = (): ApprovalQueueEntry[] =>
-  Array.from(_queue.values());
+/** Return a snapshot of all entries currently in the queue. */
+export const listQueue = (): ApprovalQueueEntry[] => Array.from(_queue.values());
 
-/**
- * Return a single entry by id, or undefined if not found.
- */
-export const getEntry = (id: string): ApprovalQueueEntry | undefined =>
-  _queue.get(id);
+/** Return a single entry by id, or undefined if not found. */
+export const getEntry = (id: string): ApprovalQueueEntry | undefined => _queue.get(id);
 
 /**
  * Apply a sparse patch to the plan steps of a pending entry.
  *
  * Returns a discriminated result:
- *  - { ok: true, entry }          — patch applied successfully
- *  - { ok: false, reason: 'not_found' }   — no entry with that id
- *  - { ok: false, reason: 'not_pending' } — entry exists but is not pending
- *
- * This method is intentionally **stateless** with respect to streaming
- * or decision state — it only mutates the queue map.
+ *  - { ok: true, entry }                   — patch applied (or no-op)
+ *  - { ok: false, reason: 'not_found' }    — no entry with that id
+ *  - { ok: false, reason: 'not_pending' }  — entry exists but is not pending
  */
 export const applyPlanEdit = (req: PlanEditRequest): PlanEditResult => {
   const entry = _queue.get(req.entryId);
@@ -134,13 +125,11 @@ export const applyPlanEdit = (req: PlanEditRequest): PlanEditResult => {
     const idx = steps.findIndex((s) => s.id === update.stepId);
     if (idx === -1) continue;
 
-    // Apply description patch
     if (update.description !== undefined && update.description !== steps[idx].description) {
       steps[idx] = { ...steps[idx], description: update.description };
       changed = true;
     }
 
-    // Apply reorder
     if (update.newIndex !== undefined && update.newIndex !== idx) {
       const [moved] = steps.splice(idx, 1);
       const clampedTarget = Math.max(0, Math.min(update.newIndex, steps.length));
@@ -165,16 +154,12 @@ export const applyPlanEdit = (req: PlanEditRequest): PlanEditResult => {
  * Record a reviewer decision (approve / reject / request_revision).
  *
  * Returns a discriminated result:
- *  - { ok: true, entry }                    — decision applied
- *  - { ok: false, reason: 'not_found' }     — no entry with that id
- *  - { ok: false, reason: 'terminal_state' } — entry is already in a
- *    terminal state (approved/rejected) and cannot be transitioned
- *    without explicit re-enqueue
+ *  - { ok: true, entry }                     — decision applied
+ *  - { ok: false, reason: 'not_found' }      — no entry with that id
+ *  - { ok: false, reason: 'terminal_state' } — entry already in a terminal
+ *    state and cannot be transitioned without explicit re-enqueue
  */
-export const recordDecision = (
-  id: string,
-  decision: ApprovalDecision,
-): DecisionResult => {
+export const recordDecision = (id: string, decision: ApprovalDecision): DecisionResult => {
   const entry = _queue.get(id);
   if (!entry) return { ok: false, reason: 'not_found' };
 
@@ -199,7 +184,5 @@ export const recordDecision = (
   return { ok: true, entry: updated };
 };
 
-/**
- * Remove an entry from the queue (e.g. after the loop has consumed it).
- */
+/** Remove an entry from the queue (e.g. after the loop has consumed it). */
 export const dequeue = (id: string): boolean => _queue.delete(id);
