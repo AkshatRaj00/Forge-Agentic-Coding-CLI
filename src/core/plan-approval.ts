@@ -14,7 +14,7 @@
  * @author Akshat Raj <AkshatRaj00>
  */
 
-import { Plan } from '../types/index';
+import { Plan } from '../types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,7 +33,7 @@ export interface ApprovalQueueEntry {
   enqueuedAt: string;
   /** ISO timestamp of the last status update, if any */
   updatedAt?: string;
-  /** Optional free-text feedback from the reviewer */
+  /** Optional free-text feedback from the reviewer (used for revision_requested / rejected) */
   reviewerFeedback?: string;
 }
 
@@ -138,7 +138,6 @@ export const applyPlanEdit = (req: PlanEditRequest): PlanEditResult => {
     }
   }
 
-  // Skip metadata update and map write when nothing actually changed.
   if (!changed) return { ok: true, entry };
 
   const updated: ApprovalQueueEntry = {
@@ -156,8 +155,7 @@ export const applyPlanEdit = (req: PlanEditRequest): PlanEditResult => {
  * Returns a discriminated result:
  *  - { ok: true, entry }                     — decision applied
  *  - { ok: false, reason: 'not_found' }      — no entry with that id
- *  - { ok: false, reason: 'terminal_state' } — entry already in a terminal
- *    state and cannot be transitioned without explicit re-enqueue
+ *  - { ok: false, reason: 'terminal_state' } — entry already in a terminal state
  */
 export const recordDecision = (id: string, decision: ApprovalDecision): DecisionResult => {
   const entry = _queue.get(id);
